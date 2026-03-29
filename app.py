@@ -10,7 +10,7 @@ import numpy as np
 # PAGE CONFIGURATION
 # ============================================
 st.set_page_config(
-    page_title="TradeNodes - Astro Numerical Trading System",
+    page_title="UzairAliDarkCrypto - Astro Numerical Trading System",
     page_icon="🌐",
     layout="wide"
 )
