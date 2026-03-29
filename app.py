@@ -5,7 +5,7 @@ import random
 import time
 
 # --- Page configuration ---
-st.set_page_config(layout="wide", page_title=""Uzair Ali Dark Crypto Bitnodes Map", page_icon="🌐")
+st.set_page_config(layout="wide", page_title="Uzair Ali Dark Crypto Bitnodes Map", page_icon="🌐")
 
 # --- CSS Styling to hide default Streamlit headers for a dark, professional look ---
 st.markdown("""
