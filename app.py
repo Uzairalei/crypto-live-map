@@ -384,3 +384,40 @@ st.markdown(legend_html, unsafe_allow_html=True)
 st.subheader("📋 UTC Update Message (Copy-Paste Ready)")
 
 update_message = f"""
+"""
+st.code(update_message, language="text")
+
+# ============================================
+# HISTORY TRACKING
+# ============================================
+if st.button("💾 Save Current Snapshot to History"):
+    st.session_state.history.append({
+        'time': current_time,
+        'tor': current_tor,
+        'na': current_na,
+        'signal': signal_code,
+        'momentum': momentum_score
+    })
+    st.success("Snapshot saved!")
+
+if st.session_state.history:
+    st.subheader("📜 History Log")
+    history_df = pd.DataFrame(st.session_state.history)
+    st.dataframe(history_df, use_container_width=True)
+
+# ============================================
+# UPDATE PREVIOUS VALUES FOR NEXT RUN
+# ============================================
+st.session_state.prev_tor = current_tor
+st.session_state.prev_na = current_na
+st.session_state.prev_time = current_time
+
+# ============================================
+# FOOTER & AUTO-REFRESH
+# ============================================
+st.markdown("---")
+st.caption(f"Last Updated: {current_time.strftime('%Y-%m-%d %H:%M:%S UTC')} | Data from Bitnodes.io")
+
+if auto_refresh:
+    time.sleep(60)
+    st.rerun()
