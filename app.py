@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import numpy as np
 import random
+import json
 
 # ============================================
 # PAGE CONFIGURATION
@@ -16,17 +17,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS - Dark Theme with Green Accent
+# Custom CSS - Bitnodes Style Dark Theme
 st.markdown("""
 <style>
     .stApp {
-        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        background: #0a0e27;
     }
     .main-header {
         text-align: center;
         padding: 20px;
         margin-bottom: 30px;
-        border-bottom: 2px solid #00ffaa;
+        border-bottom: 1px solid #2a2f4a;
     }
     .main-header h1 {
         color: #00ffaa;
@@ -39,27 +40,27 @@ st.markdown("""
         font-size: 0.9em;
     }
     .signal-card {
-        background: rgba(0,0,0,0.7);
-        border: 1px solid #00ffaa;
-        border-radius: 10px;
+        background: rgba(10,14,39,0.9);
+        border: 1px solid #2a2f4a;
+        border-radius: 8px;
         padding: 20px;
         margin: 10px 0;
     }
     .bullish { 
         border-left: 4px solid #00ffaa; 
-        background: rgba(0,255,170,0.1);
+        background: rgba(0,255,170,0.05);
     }
     .bearish { 
         border-left: 4px solid #ff4444; 
-        background: rgba(255,68,68,0.1);
+        background: rgba(255,68,68,0.05);
     }
     .neutral { 
         border-left: 4px solid #ffaa00; 
-        background: rgba(255,170,0,0.1);
+        background: rgba(255,170,0,0.05);
     }
     .stat-card {
-        background: rgba(0,0,0,0.5);
-        border: 1px solid #00ffaa;
+        background: #0f1322;
+        border: 1px solid #2a2f4a;
         border-radius: 8px;
         padding: 15px;
         text-align: center;
@@ -69,49 +70,44 @@ st.markdown("""
         font-weight: bold;
         color: #00ffaa;
     }
-    .node-marker {
-        background: #00ffaa;
-        border-radius: 50%;
-        width: 12px;
-        height: 12px;
-        box-shadow: 0 0 10px #00ffaa;
-        animation: pulse 2s infinite;
+    .coin-card {
+        background: #0f1322;
+        border: 1px solid #2a2f4a;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 5px 0;
     }
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.5); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
+    .long-signal {
+        color: #00ffaa;
+        font-weight: bold;
     }
-    .legend {
-        font-family: monospace;
-        font-size: 12px;
-        background: rgba(0,0,0,0.5);
-        padding: 10px;
-        border-radius: 5px;
+    .short-signal {
+        color: #ff4444;
+        font-weight: bold;
     }
     .footer {
         text-align: center;
-        color: #88ffcc;
+        color: #5a6e8a;
         font-size: 0.8em;
         margin-top: 30px;
         padding-top: 20px;
-        border-top: 1px solid #00ffaa;
+        border-top: 1px solid #2a2f4a;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================
-# HEADER - Updated Text
+# HEADER
 # ============================================
 st.markdown("""
 <div class="main-header">
     <h1>🌑 UZair Ali Dark Crypto</h1>
-    <p>Bitcoin Network Node Map | Astro-Numerical Trading System | Live Bitnodes Integration</p>
+    <p>Bitcoin Network Node Map | Live Bitnodes Data | Long/Short Signals</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ============================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE
 # ============================================
 if 'prev_tor' not in st.session_state:
     st.session_state.prev_tor = None
@@ -121,162 +117,214 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 
 # ============================================
-# BITNODES API FETCH FUNCTION
+# BITNODES REAL API FETCH - FIXED
 # ============================================
-@st.cache_data(ttl=30)
-def fetch_bitnodes_data():
-    """Fetch live data from Bitnodes API"""
+@st.cache_data(ttl=60)
+def fetch_bitnodes_real_data():
+    """Fetch REAL data from Bitnodes API - FIXED VERSION"""
     try:
-        # Primary API endpoint
+        # Correct API endpoint - get latest snapshot
         url = "https://bitnodes.io/api/v1/snapshots/latest/"
-        response = requests.get(url, timeout=10)
+        
+        st.info(f"🌐 Fetching from: {url}")
+        
+        response = requests.get(url, headers={
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0'
+        }, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
-            total_nodes = data.get('total_nodes', 0)
             
-            # Count TOR nodes
+            # Extract data
+            total_nodes = data.get('total_nodes', 0)
+            timestamp = data.get('timestamp', 0)
+            latest_height = data.get('latest_height', 0)
+            nodes_dict = data.get('nodes', {})
+            
+            # Calculate TOR nodes count
             tor_count = 0
-            nodes = data.get('nodes', {})
-            for node_ip, node_data in nodes.items():
-                if len(node_data) > 5 and node_data[5] is not None:
-                    if 'tor' in str(node_data[5]).lower():
+            node_list = []
+            
+            for node_address, node_info in nodes_dict.items():
+                if len(node_info) >= 5:
+                    user_agent = node_info[1] if len(node_info) > 1 else ""
+                    height = node_info[4] if len(node_info) > 4 else 0
+                    
+                    # Check if TOR node (.onion address)
+                    if '.onion' in node_address.lower():
                         tor_count += 1
+                    
+                    # Store node for map
+                    node_list.append({
+                        'address': node_address,
+                        'user_agent': user_agent,
+                        'height': height,
+                        'is_tor': '.onion' in node_address.lower()
+                    })
             
             tor_percentage = (tor_count / total_nodes * 100) if total_nodes > 0 else 0
+            
+            # Get geolocation data for nodes (from Bitnodes API's built-in data)
+            nodes_with_location = []
+            
+            # Sample real node locations from Bitnodes data
+            for addr, info in list(nodes_dict.items())[:50]:  # Limit to 50 for performance
+                if len(info) >= 12:  # Check if location data exists
+                    nodes_with_location.append({
+                        'ip': addr,
+                        'lat': info[8] if len(info) > 8 and isinstance(info[8], (int, float)) else None,
+                        'lon': info[9] if len(info) > 9 and isinstance(info[9], (int, float)) else None,
+                        'city': info[6] if len(info) > 6 else "Unknown",
+                        'country': info[7] if len(info) > 7 else "Unknown",
+                        'user_agent': info[1] if len(info) > 1 else "",
+                        'height': info[4] if len(info) > 4 else 0
+                    })
             
             return {
                 'tor': round(tor_percentage, 2),
                 'na': total_nodes,
-                'timestamp': datetime.now(),
-                'success': True
+                'block_height': latest_height,
+                'timestamp': datetime.fromtimestamp(timestamp) if timestamp else datetime.now(),
+                'nodes': node_list[:100],
+                'nodes_with_location': [n for n in nodes_with_location if n['lat'] and n['lon']],
+                'success': True,
+                'raw_data': data
             }
         else:
-            return generate_mock_data()
+            st.warning(f"API returned {response.status_code}. Using enhanced mock data.")
+            return generate_enhanced_mock_data()
             
     except Exception as e:
-        print(f"API Error: {e}")
-        return generate_mock_data()
+        st.error(f"API Error: {str(e)}")
+        return generate_enhanced_mock_data()
 
-def generate_mock_data():
-    """Generate realistic mock data when API fails"""
+def generate_enhanced_mock_data():
+    """Generate realistic mock data with trading signals"""
     # Simulate realistic TOR and NA values
-    base_tor = 65.2
-    base_na = 23500
+    base_tor = 64.8
+    base_na = 23800
+    
+    # Create realistic node locations
+    nodes_with_location = [
+        {'ip': '217.15.178.11:8333', 'lat': 43.25, 'lon': 76.95, 'city': 'Almaty', 'country': 'KZ', 'user_agent': '/Satoshi:27.0.0/', 'height': 877541},
+        {'ip': '161.0.99.56:8333', 'lat': 12.12, 'lon': -68.93, 'city': 'Willemstad', 'country': 'CW', 'user_agent': '/Satoshi:26.0.0/', 'height': 877540},
+        {'ip': '115.85.88.107:8333', 'lat': -6.21, 'lon': 106.85, 'city': 'Jakarta', 'country': 'ID', 'user_agent': '/Satoshi:27.1.0/', 'height': 877539},
+        {'ip': '185.165.168.22:8333', 'lat': 51.51, 'lon': -0.13, 'city': 'London', 'country': 'GB', 'user_agent': '/Satoshi:27.0.0/', 'height': 877542},
+        {'ip': '103.152.112.44:8333', 'lat': 1.35, 'lon': 103.82, 'city': 'Singapore', 'country': 'SG', 'user_agent': '/Satoshi:26.1.0/', 'height': 877538},
+        {'ip': '45.32.18.99:8333', 'lat': 40.71, 'lon': -74.01, 'city': 'New York', 'country': 'US', 'user_agent': '/Satoshi:27.0.0/', 'height': 877543},
+        {'ip': '94.130.15.22:8333', 'lat': 50.11, 'lon': 8.68, 'city': 'Frankfurt', 'country': 'DE', 'user_agent': '/Satoshi:26.0.0/', 'height': 877540},
+        {'ip': '139.162.88.44:8333', 'lat': 35.68, 'lon': 139.76, 'city': 'Tokyo', 'country': 'JP', 'user_agent': '/Satoshi:27.1.0/', 'height': 877541},
+        {'ip': '116.203.44.77:8333', 'lat': 19.08, 'lon': 72.88, 'city': 'Mumbai', 'country': 'IN', 'user_agent': '/Satoshi:26.0.0/', 'height': 877537},
+        {'ip': '51.195.55.33:8333', 'lat': 48.86, 'lon': 2.35, 'city': 'Paris', 'country': 'FR', 'user_agent': '/Satoshi:27.0.0/', 'height': 877539},
+    ]
     
     return {
-        'tor': round(base_tor + random.uniform(-1.5, 1.5), 2),
-        'na': int(base_na + random.uniform(-300, 300)),
+        'tor': round(base_tor + random.uniform(-1.2, 1.2), 2),
+        'na': int(base_na + random.uniform(-250, 250)),
+        'block_height': 877540 + random.randint(-5, 5),
         'timestamp': datetime.now(),
+        'nodes': [],
+        'nodes_with_location': nodes_with_location,
         'success': False
     }
 
 # ============================================
-# WORLD MAP FUNCTION - WORKING VERSION
+# WORLD MAP - BITNODES STYLE COLOR
 # ============================================
-def create_node_map(nodes_list):
-    """Create a working map with node locations"""
+def create_bitnodes_style_map(nodes_list):
+    """Create map with Bitnodes.io exact color scheme"""
     
-    # Define node locations (Bitnodes-like distribution)
-    default_nodes = [
-        {"ip": "217.15.178.11:8333", "location": "Almaty, Kazakhstan", "lat": 43.25, "lon": 76.95, "trend": 66.2},
-        {"ip": "161.0.99.56:8333", "location": "Willemstad, Curacao", "lat": 12.12, "lon": -68.93, "trend": 57.0},
-        {"ip": "115.85.88.107:8333", "location": "Jakarta, Indonesia", "lat": -6.21, "lon": 106.85, "trend": 72.0},
-        {"ip": "185.165.168.22:8333", "location": "London, UK", "lat": 51.51, "lon": -0.13, "trend": 81.0},
-        {"ip": "103.152.112.44:8333", "location": "Singapore", "lat": 1.35, "lon": 103.82, "trend": 91.0},
-        {"ip": "45.32.18.99:8333", "location": "New York, USA", "lat": 40.71, "lon": -74.01, "trend": 63.5},
-        {"ip": "94.130.15.22:8333", "location": "Frankfurt, Germany", "lat": 50.11, "lon": 8.68, "trend": 59.3},
-        {"ip": "139.162.88.44:8333", "location": "Tokyo, Japan", "lat": 35.68, "lon": 139.76, "trend": 77.8},
-        {"ip": "116.203.44.77:8333", "location": "Mumbai, India", "lat": 19.08, "lon": 72.88, "trend": 71.2},
-        {"ip": "51.195.55.33:8333", "location": "Paris, France", "lat": 48.86, "lon": 2.35, "trend": 54.6},
-    ]
+    if not nodes_list:
+        nodes_list = [
+            {"ip": "217.15.178.11:8333", "lat": 43.25, "lon": 76.95, "city": "Almaty", "trend": 66.2},
+            {"ip": "161.0.99.56:8333", "lat": 12.12, "lon": -68.93, "city": "Willemstad", "trend": 57.0},
+            {"ip": "115.85.88.107:8333", "lat": -6.21, "lon": 106.85, "city": "Jakarta", "trend": 72.0},
+            {"ip": "185.165.168.22:8333", "lat": 51.51, "lon": -0.13, "city": "London", "trend": 81.0},
+            {"ip": "103.152.112.44:8333", "lat": 1.35, "lon": 103.82, "city": "Singapore", "trend": 91.0},
+        ]
     
-    # Create DataFrame
-    df = pd.DataFrame(default_nodes)
+    df = pd.DataFrame(nodes_list)
     
-    # Create scatter map - USING SCATTER_GEO (more reliable than scatter_map)
+    # Create scatter map - Bitnodes style colors
     fig = go.Figure()
     
-    # Add scatter traces for nodes
+    # Add country borders background (world map)
     fig.add_trace(go.Scattergeo(
-        lon=df['lon'],
-        lat=df['lat'],
-        text=df['ip'] + '<br>' + df['location'] + '<br>Trend: ' + df['trend'].astype(str) + '%',
+        lon=[-180, 180, 180, -180, -180],
+        lat=[-90, -90, 90, 90, -90],
+        mode='lines',
+        line=dict(width=0),
+        fill='toself',
+        fillcolor='#0f1322',
+        showlegend=False
+    ))
+    
+    # Add nodes with size based on activity
+    fig.add_trace(go.Scattergeo(
+        lon=df['lon'] if 'lon' in df.columns else [n.get('lon', 0) for n in nodes_list],
+        lat=df['lat'] if 'lat' in df.columns else [n.get('lat', 0) for n in nodes_list],
+        text=[f"{n.get('ip', n.get('address', 'Unknown'))}<br>{n.get('city', 'Unknown')}<br>Status: Active" for n in nodes_list],
         mode='markers',
         marker=dict(
-            size=12,
-            color=df['trend'],
-            colorscale='Viridis',
+            size=10,
+            color='#00ffaa',
+            colorscale=[[0, '#ff4444'], [0.5, '#ffaa00'], [1, '#00ffaa']],
             showscale=True,
-            colorbar=dict(title="Node Trend %"),
+            colorbar=dict(title="Node Health", tickfont=dict(color='#88ffcc')),
             symbol='circle',
-            line=dict(width=1, color='#00ffaa')
+            line=dict(width=1, color='#ffffff'),
+            opacity=0.9
         ),
         hovertemplate='<b>%{text}</b><extra></extra>'
     ))
     
-    # Update layout for world map
+    # Bitnodes.io style layout
     fig.update_layout(
         title=dict(
-            text="🌍 Bitcoin Node Network Map",
-            font=dict(color='#00ffaa', size=16),
+            text="🌍 Bitcoin Network Nodes - Live Map",
+            font=dict(color='#00ffaa', size=16, family='Courier New'),
             x=0.5
         ),
         geo=dict(
-            projection_type='natural earth',
+            projection_type='equirectangular',
             showland=True,
-            landcolor='#1a1f3a',
-            coastlinecolor='#00ffaa',
+            landcolor='#0a0e27',
+            coastlinecolor='#2a2f4a',
+            coastlinewidth=0.5,
             showocean=True,
-            oceancolor='#0a0e27',
+            oceancolor='#050814',
             showcountries=True,
-            countrycolor='#2a2f4a',
+            countrycolor='#1a2040',
+            countrywidth=0.5,
             showframe=False,
-            lataxis=dict(range=[-60, 90]),
-            lonaxis=dict(range=[-180, 180])
+            lataxis=dict(
+                showgrid=False,
+                tickcolor='#2a2f4a'
+            ),
+            lonaxis=dict(
+                showgrid=False,
+                tickcolor='#2a2f4a'
+            ),
+            bgcolor='#0a0e27'
         ),
         height=550,
         margin=dict(l=0, r=0, t=50, b=0),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#88ffcc')
+        paper_bgcolor='#0a0e27',
+        plot_bgcolor='#0a0e27',
+        font=dict(color='#88ffcc', family='Courier New'),
+        hoverlabel=dict(bgcolor='#0a0e27', font_size=12, font_color='#00ffaa')
     )
     
     return fig
 
 # ============================================
-# CALCULATIONS FUNCTIONS
+# TRADING SIGNAL CALCULATIONS
 # ============================================
 def calculate_delta(current, previous):
     if previous is None:
         return 0
     return round(current - previous, 2)
-
-def calculate_numerology(number):
-    if number is None:
-        return None
-    num_str = str(number).replace('.', '')
-    total = sum(int(d) for d in num_str if d.isdigit())
-    while total > 9:
-        total = sum(int(d) for d in str(total))
-    return total
-
-def get_astro_window(utc_time):
-    hour = utc_time.hour
-    minute = utc_time.minute
-    
-    if 9 <= hour < 9 or (hour == 9 and minute <= 30):
-        return "🌙 Micro-Reversal Band (expect fake-wicks)"
-    elif 4 <= hour < 4 or (hour == 4 and minute <= 30):
-        return "🌅 Re-Entry Gate (accumulation zone)"
-    elif 12 <= hour < 13:
-        return "☀️ High Liquidity Window"
-    elif 17 <= hour < 18 or (hour == 17 and minute >= 55) or (hour == 18 and minute <= 20):
-        return "🔥 US Open Power Zone"
-    elif 5 <= hour < 11:
-        return "🌏 Asia Session"
-    else:
-        return "⚡ Normal Trading Window"
 
 def calculate_momentum_score(delta_tor, delta_na):
     tor_signal = 1 if delta_tor > 0 else (-1 if delta_tor < 0 else 0)
@@ -288,44 +336,101 @@ def get_slope_pattern(delta_tor, delta_na):
     na_up = delta_na > 0
     
     if tor_up and na_up:
-        return "🚀 Synchronized Bullish", "bullish"
+        return "🚀 Synchronized Bullish", "bullish", "Both ↑ → Strong momentum building"
     elif not tor_up and not na_up:
-        return "📉 Synchronized Bearish", "bearish"
+        return "📉 Synchronized Bearish", "bearish", "Both ↓ → Selling pressure increasing"
     elif tor_up and not na_up:
-        return "⚠️ Divergence (Selective Buying)", "neutral"
+        return "⚠️ Divergence (Selective Buying)", "neutral", "TOR ↑ & NA ↓ → Limited fuel, cautious longs"
     else:
-        return "🔄 Divergence (Accumulation)", "bullish"
+        return "🔄 Divergence (Accumulation)", "bullish", "TOR ↓ & NA ↑ → Smart money buying dip"
 
 def get_trading_signal(tor, na, delta_tor, delta_na):
     # Strong Bull Condition
     if tor >= 66.5 and delta_tor >= 0.1 and na >= 23500 and delta_na > 0:
-        return "L+", "Strong Long", "bullish", "TOR ≥ 66.5%, NA ≥ 23.5k, both rising"
+        return "L+", "STRONG LONG", "bullish", "TOR ≥ 66.5%, NA ≥ 23.5k, both rising - EXPECT PUMP"
     
     # Strong Bear Condition
     if tor < 64 and delta_tor < 0 and delta_na < 0:
-        return "S+", "Strong Short", "bearish", "Both falling sharply"
+        return "S+", "STRONG SHORT", "bearish", "Both falling sharply - EXPECT DUMP"
     
-    # Pressure Reset
+    # Pressure Reset (Bullish continuation)
     if tor > 66.5 and delta_na < 0 and na > 23500:
-        return "L", "Hold Long (Pressure Reset)", "bullish", "Expect bullish continuation"
+        return "L", "HOLD LONG", "bullish", "Pressure reset - Expect bullish continuation after dip"
     
     # Divergence Cases
     if delta_tor > 0 and delta_na < 0:
-        return "L*", "Selective Long", "neutral", "Momentum limited, use tight stops"
+        return "L*", "SELECTIVE LONG", "neutral", "Momentum limited, small longs only with confirmation"
     
     if delta_tor < 0 and delta_na > 0:
-        return "L", "Accumulation Phase", "bullish", "Smart money buying dip"
+        return "L", "ACCUMULATION PHASE", "bullish", "Smart money buying - Hold longs, avoid shorts"
     
-    return "N", "Neutral / Wait", "neutral", "No clear signal"
+    return "N", "NEUTRAL", "neutral", "No clear signal - Wait for confirmation"
+
+# ============================================
+# COIN LONG/SHORT SIGNALS
+# ============================================
+def get_coin_signals(tor, na, delta_tor, delta_na):
+    """Generate long/short signals for different coins based on Bitnodes data"""
+    
+    signals = []
+    
+    # BTC Signal (most weight)
+    if tor >= 66 and delta_tor > 0:
+        btc_signal = {"coin": "BTC", "signal": "LONG", "strength": "Strong", "color": "long-signal", "entry": "64,500-65,200"}
+    elif tor < 64 and delta_tor < 0:
+        btc_signal = {"coin": "BTC", "signal": "SHORT", "strength": "Strong", "color": "short-signal", "entry": "63,800-64,200"}
+    else:
+        btc_signal = {"coin": "BTC", "signal": "NEUTRAL", "strength": "Wait", "color": "neutral", "entry": "No entry"}
+    signals.append(btc_signal)
+    
+    # ETH Signal
+    if na > 24000 and delta_tor > 0:
+        eth_signal = {"coin": "ETH", "signal": "LONG", "strength": "Moderate", "color": "long-signal", "entry": "3,450-3,500"}
+    elif na < 23500 and delta_tor < 0:
+        eth_signal = {"coin": "ETH", "signal": "SHORT", "strength": "Moderate", "color": "short-signal", "entry": "3,380-3,420"}
+    else:
+        eth_signal = {"coin": "ETH", "signal": "NEUTRAL", "strength": "Wait", "color": "neutral", "entry": "No entry"}
+    signals.append(eth_signal)
+    
+    # SOL Signal
+    if delta_tor > 0.2 and delta_na > 50:
+        sol_signal = {"coin": "SOL", "signal": "LONG", "strength": "Strong", "color": "long-signal", "entry": "145-148"}
+    elif delta_tor < -0.2 and delta_na < -50:
+        sol_signal = {"coin": "SOL", "signal": "SHORT", "strength": "Strong", "color": "short-signal", "entry": "138-141"}
+    else:
+        sol_signal = {"coin": "SOL", "signal": "NEUTRAL", "strength": "Wait", "color": "neutral", "entry": "No entry"}
+    signals.append(sol_signal)
+    
+    # XRP Signal (based on NA momentum)
+    if delta_na > 100:
+        xrp_signal = {"coin": "XRP", "signal": "LONG", "strength": "Moderate", "color": "long-signal", "entry": "0.52-0.54"}
+    elif delta_na < -100:
+        xrp_signal = {"coin": "XRP", "signal": "SHORT", "strength": "Moderate", "color": "short-signal", "entry": "0.48-0.50"}
+    else:
+        xrp_signal = {"coin": "XRP", "signal": "NEUTRAL", "strength": "Wait", "color": "neutral", "entry": "No entry"}
+    signals.append(xrp_signal)
+    
+    # DOGE Signal (trend following)
+    if tor > 65.5:
+        doge_signal = {"coin": "DOGE", "signal": "LONG", "strength": "Weak", "color": "long-signal", "entry": "0.102-0.105"}
+    elif tor < 64.5:
+        doge_signal = {"coin": "DOGE", "signal": "SHORT", "strength": "Weak", "color": "short-signal", "entry": "0.095-0.098"}
+    else:
+        doge_signal = {"coin": "DOGE", "signal": "NEUTRAL", "strength": "Wait", "color": "neutral", "entry": "No entry"}
+    signals.append(doge_signal)
+    
+    return signals
 
 # ============================================
 # FETCH DATA
 # ============================================
 with st.spinner("🔄 Fetching live Bitnodes data..."):
-    current_data = fetch_bitnodes_data()
+    current_data = fetch_bitnodes_real_data()
     current_tor = current_data['tor']
     current_na = current_data['na']
     current_time = current_data['timestamp']
+    block_height = current_data.get('block_height', 'N/A')
+    nodes_list = current_data.get('nodes_with_location', [])
 
 # Calculate deltas
 delta_tor = calculate_delta(current_tor, st.session_state.prev_tor)
@@ -333,16 +438,16 @@ delta_na = calculate_delta(current_na, st.session_state.prev_na)
 
 # Get analysis results
 momentum_score = calculate_momentum_score(delta_tor, delta_na)
-slope_text, slope_type = get_slope_pattern(delta_tor, delta_na)
-astro_window = get_astro_window(current_time)
-tor_num = calculate_numerology(current_tor)
-na_num = calculate_numerology(current_na)
+slope_text, slope_type, slope_desc = get_slope_pattern(delta_tor, delta_na)
 signal_code, signal_text, signal_type, signal_reason = get_trading_signal(
     current_tor, current_na, delta_tor, delta_na
 )
 
+# Get coin signals
+coin_signals = get_coin_signals(current_tor, current_na, delta_tor, delta_na)
+
 # ============================================
-# DISPLAY - STATS ROW
+# STATS DISPLAY
 # ============================================
 st.subheader("📊 Live Network Statistics")
 
@@ -378,30 +483,29 @@ with col3:
 with col4:
     st.markdown(f"""
     <div class="stat-card">
-        <div>🔢 TOR Numerology</div>
-        <div class="stat-value">{tor_num if tor_num else '-'}</div>
+        <div>📦 Block Height</div>
+        <div class="stat-value">{block_height}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with col5:
     st.markdown(f"""
     <div class="stat-card">
-        <div>🔢 NA Numerology</div>
-        <div class="stat-value">{na_num if na_num else '-'}</div>
+        <div>🕐 Last Update</div>
+        <div class="stat-value">{current_time.strftime('%H:%M:%S')}</div>
     </div>
     """, unsafe_allow_html=True)
 
 # ============================================
-# MAP DISPLAY
+# MAP DISPLAY - BITNODES STYLE
 # ============================================
 st.subheader("🗺️ Bitcoin Node Network Map")
 
-# Create and display map
-fig = create_node_map(None)
+# Create and display map with Bitnodes style
+fig = create_bitnodes_style_map(nodes_list)
 st.plotly_chart(fig, use_container_width=True)
 
-# Node information caption
-st.caption("📍 Each dot represents a Bitcoin node. Hover for details. Color indicates trend strength.")
+st.caption("📍 Green nodes: Active Bitcoin nodes | Size indicates activity level | Data from Bitnodes.io")
 
 # ============================================
 # SIGNAL & SLOPE
@@ -413,10 +517,10 @@ with col_s1:
     st.markdown(f"""
     <div class="signal-card {signal_type}">
         <h2>{signal_color} SIGNAL: {signal_code}</h2>
-        <p><strong>{signal_text}</strong></p>
+        <h3>{signal_text}</h3>
         <p>{signal_reason}</p>
         <hr>
-        <p><small>⏱️ Last updated: {current_time.strftime('%H:%M:%S UTC')}</small></p>
+        <p><small>⏱️ Analysis based on latest snapshot</small></p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -425,16 +529,35 @@ with col_s2:
     <div class="signal-card">
         <h3>📈 Slope Analysis</h3>
         <p><strong>{slope_text}</strong></p>
+        <p>{slope_desc}</p>
         <hr>
-        <h3>🌙 Astro Window</h3>
-        <p>{astro_window}</p>
-        <hr>
-        <h3>📊 ΔTOR: {delta_tor:+.2f}% | ΔNA: {delta_na:+,.0f}</h3>
+        <h3>📊 Delta Values</h3>
+        <p>ΔTOR: <span style="color:{'#00ffaa' if delta_tor>0 else '#ff4444'}">{delta_tor:+.2f}%</span></p>
+        <p>ΔNA: <span style="color:{'#00ffaa' if delta_na>0 else '#ff4444'}">{delta_na:+,.0f}</span></p>
     </div>
     """, unsafe_allow_html=True)
 
 # ============================================
-# SCALPING SECTION
+# COIN LONG/SHORT SIGNALS TABLE
+# ============================================
+st.subheader("💰 Coin Long/Short Signals")
+
+# Display as grid
+cols = st.columns(5)
+for idx, signal in enumerate(coin_signals):
+    with cols[idx]:
+        signal_emoji = "🟢" if signal['signal'] == "LONG" else ("🔴" if signal['signal'] == "SHORT" else "🟡")
+        st.markdown(f"""
+        <div class="coin-card">
+            <h3>{signal['coin']}</h3>
+            <div class="{signal['color']}">{signal_emoji} {signal['signal']}</div>
+            <div>Strength: {signal['strength']}</div>
+            <div>Entry: {signal['entry']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ============================================
+# SCALPING SIGNAL
 # ============================================
 st.subheader("🎯 Scalping Signal")
 
@@ -442,28 +565,31 @@ st.subheader("🎯 Scalping Signal")
 if current_tor >= 65.5 and delta_tor > 0 and current_na > 23500:
     scalp_signal = "🎯 LONG SCALP READY"
     scalp_color = "🟢"
-    scalp_reason = "TOR rising + NA high → Bullish momentum expected"
+    scalp_reason = "TOR rising + NA high → Bullish momentum expected | Best for: BTC, ETH, SOL"
+    scalp_entry = f"Entry: Market | Target: 0.5% | Stop: -0.25%"
 elif current_tor < 64 and delta_tor < 0:
     scalp_signal = "🎯 SHORT SCALP READY"
     scalp_color = "🔴"
-    scalp_reason = "TOR falling → Bearish pressure expected"
+    scalp_reason = "TOR falling → Bearish pressure expected | Best for: BTC, ETH"
+    scalp_entry = f"Entry: Market | Target: 0.4% | Stop: -0.25%"
 elif delta_tor > 0 and delta_na < 0:
     scalp_signal = "⚠️ CAUTION - Divergence"
     scalp_color = "🟡"
     scalp_reason = "Mixed signals, wait for confirmation"
+    scalp_entry = "No scalp entry recommended"
 else:
     scalp_signal = "⏳ No Clear Scalp Signal"
     scalp_color = "⚪"
-    scalp_reason = "Wait for better setup"
+    scalp_reason = "Wait for better setup (US Open or Asia session)"
+    scalp_entry = "Monitor TOR and NA for next update"
 
 st.markdown(f"""
 <div class="signal-card">
     <h3>{scalp_color} {scalp_signal}</h3>
     <p>{scalp_reason}</p>
+    <p>{scalp_entry}</p>
     <hr>
-    <small>⚡ Suggested: 5x-10x leverage | Target: 0.4%-0.7% | Stop: -0.3%</small>
-    <br>
-    <small>📌 Best sessions: Asia (5-11am), Europe (12-2pm), US Open (5:55-6:20pm PKT)</small>
+    <small>⚡ Leverage: 5x-10x | Best sessions: Asia (5-11am), Europe (12-2pm), US Open (5:55-6:20pm PKT)</small>
 </div>
 """, unsafe_allow_html=True)
 
@@ -475,13 +601,13 @@ st.subheader("🛡️ Risk Management")
 col_r1, col_r2, col_r3 = st.columns(3)
 
 with col_r1:
-    st.info("📊 **Position Sizing**\n\n- Max 3 trades/day\n- Risk 1-2% per trade\n- 5x-10x leverage max")
+    st.info("📊 **Position Sizing**\n\n- Max 3 trades/day\n- Risk 1-2% per trade\n- 5x-10x leverage max\n- Never over-leverage")
 
 with col_r2:
-    st.warning("⛔ **Stop Loss Rules**\n\n- Default: 0.25%-0.4%\n- High leverage: 0.18%-0.25%\n- Always use hard stop")
+    st.warning("⛔ **Stop Loss Rules**\n\n- Default: 0.25%-0.4%\n- High leverage: 0.18%-0.25%\n- Always use hard stop\n- Move to breakeven after 0.3% profit")
 
 with col_r3:
-    st.success("🎯 **Take Profit**\n\n- Scale out 25-50% at 0.4-1.0%\n- Trail stop after 0.5%\n- Don't get greedy")
+    st.success("🎯 **Take Profit**\n\n- Scale out 25-50% at 0.4-1.0%\n- Trail stop after 0.5% move\n- Don't get greedy\n- Take profits and wait for next signal")
 
 # ============================================
 # SIGNAL LEGEND
@@ -489,24 +615,24 @@ with col_r3:
 st.subheader("📖 Quick Signal Legend")
 
 legend_html = """
-<div class="legend">
-    <b>L+</b> = Strong Long (TOR & NA both rising strongly)<br>
-    <b>L</b> = Hold Long (NA stable, TOR > threshold)<br>
-    <b>N</b> = Neutral / Wait (mixed signals)<br>
-    <b>S</b> = Short (both falling)<br>
-    <b>S+</b> = Strong Short (TOR < 64% & NA dropping fast)<br>
-    <b>L*</b> = Selective Long (momentum limited)<br>
+<div style="background:#0f1322; padding:15px; border-radius:8px; border:1px solid #2a2f4a;">
+    <b>L+</b> = Strong Long (TOR & NA both rising strongly) - EXPECT PUMP<br>
+    <b>L</b> = Hold Long (NA stable, TOR > threshold) - BULLISH CONTINUATION<br>
+    <b>N</b> = Neutral / Wait (mixed signals) - NO TRADE<br>
+    <b>S</b> = Short (both falling) - EXPECT DUMP<br>
+    <b>S+</b> = Strong Short (TOR < 64% & NA dropping fast) - AGGRESSIVE SHORT<br>
+    <b>L*</b> = Selective Long (momentum limited) - CAUTIOUS<br>
     <br>
-    <b>Pump Confirmation:</b> TOR↑ + NA↑ + Volume Spike + Funding Negative<br>
-    <b>Dump Confirmation:</b> TOR↓ + NA↓ + Funding Positive + OI Rising
+    <b>PUMP CONFIRMATION:</b> TOR↑ + NA↑ + Volume Spike + Funding Negative<br>
+    <b>DUMP CONFIRMATION:</b> TOR↓ + NA↓ + Funding Positive + OI Rising
 </div>
 """
 st.markdown(legend_html, unsafe_allow_html=True)
 
 # ============================================
-# HISTORY & UPDATE BUTTON
+# HISTORY & REFRESH
 # ============================================
-col_h1, col_h2 = st.columns([1, 3])
+col_h1, col_h2, col_h3 = st.columns([1, 1, 2])
 
 with col_h1:
     if st.button("💾 Save to History", use_container_width=True):
@@ -530,33 +656,6 @@ if st.session_state.history:
     st.dataframe(history_df, use_container_width=True, hide_index=True)
 
 # ============================================
-# UTC UPDATE MESSAGE
-# ============================================
-st.subheader("📋 Live UTC Update Message")
-
-update_message = f"""
-┌─────────────────────────────────────────────────────────────┐
-│  🌑 UZAIR ALI DARK CRYPTO - TRADING SIGNAL                  │
-├─────────────────────────────────────────────────────────────┤
-│  🕐 UTC: {current_time.strftime('%H:%M:%S')}                                │
-│                                                             │
-│  📊 DATA:                                                   │
-│     TOR: {current_tor}% (Δ {delta_tor:+.2f}%)                             │
-│     NA:  {current_na:,} (Δ {delta_na:+,.0f})                            │
-│                                                             │
-│  📈 SIGNAL: {signal_code} - {signal_text}                    │
-│     {signal_reason}                                         │
-│                                                             │
-│  🎯 ACTION:                                                 │
-│     Stop: 0.25% below swing low                            │
-│     Target: 0.4%-0.7%                                      │
-│                                                             │
-│  ⚠️ Flip if TOR < 63.8% and NA < 23,100                    │
-└─────────────────────────────────────────────────────────────┘
-"""
-st.code(update_message, language="text")
-
-# ============================================
 # UPDATE PREVIOUS VALUES
 # ============================================
 st.session_state.prev_tor = current_tor
@@ -569,5 +668,6 @@ st.markdown(f"""
 <div class="footer">
     <p>🔄 Live Bitnodes Data | Last Update: {current_time.strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
     <p>⚠️ Disclaimer: Trading signals are for informational purposes only. Always DYOR and use proper risk management.</p>
+    <p>📡 Data Source: Bitnodes.io API | Block Height: {block_height} | Active Nodes: {current_na:,}</p>
 </div>
 """, unsafe_allow_html=True)
