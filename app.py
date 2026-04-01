@@ -1,116 +1,474 @@
-import streamlit as st
-import plotly.graph_objects as go
-import pandas as pd
-import requests
-import random
-from datetime import datetime
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-# --- Page Configuration ---
-st.set_page_config(layout="wide", page_title="Uzair Ali Dark Crypto", page_icon="⚡")
+body {
+    background: #0a0e27;
+    font-family: 'Share Tech Mono', 'Orbitron', monospace;
+    color: #88ffcc;
+    padding: 20px;
+}
 
-# --- Institutional Dark Theme ---
-st.markdown("""
-    <style>
-    header, footer { visibility: hidden; }
-    .stApp { background-color: #000000; color: #ffffff; }
-    h1 { color: #00FFFF; font-family: 'Orbitron', sans-serif; text-align: center; text-shadow: 0px 0px 15px #00FFFF; }
-    .signal-card { border: 2px solid #1a1a1a; padding: 20px; border-radius: 15px; background: #050505; text-align: center; }
-    .strategy-tag { background: #111; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin: 2px; border: 1px solid #333; display: inline-block; }
-    </style>
-""", unsafe_allow_html=True)
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
 
-# --- Real-Time Data Fetching (Bitnodes API) ---
-@st.cache_data(ttl=60)
-def fetch_bitnodes_live():
-    try:
-        # Direct API call to bitnodes latest snapshot
-        url = "https://bitnodes.io/api/v1/snapshots/latest/"
-        res = requests.get(url, timeout=10).json()
-        nodes_raw = res.get("nodes", {})
-        
-        processed = []
-        # Bitnodes detail index: 6=Country, 7=Lat, 8=Lon
-        for ip, d in list(nodes_raw.items())[:500]: 
-            if d[7] and d[8]:
-                processed.append({
-                    "country": d[6] if d[6] else "Global",
-                    "lat": d[7],
-                    "lon": d[8],
-                    "agent": d[1]
-                })
-        return processed, len(nodes_raw), res.get("timestamp")
-    except:
-        return [], 23854, int(datetime.utcnow().timestamp())
+/* Header */
+header {
+    text-align: center;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #2a2f4a;
+}
 
-# --- Strategy Calculation Engine ---
-def process_uzair_signal(na_count):
-    # Tradenodes + Institutional Inputs
-    tor = random.uniform(63.5, 67.2) 
-    funding = random.choice(["Negative", "Positive"])
-    cvd = random.choice(["Up", "Down"])
-    whale = random.choice(["Withdrawal", "Deposit"])
-    etf = random.choice(["Inflow", "Outflow"])
+header h1 {
+    color: #00ffaa;
+    font-size: 2.5em;
+    text-shadow: 0 0 10px #00ffaa;
+    letter-spacing: 2px;
+    font-family: 'Orbitron', monospace;
+}
+
+.subtitle {
+    color: #88ffcc;
+    font-size: 0.9em;
+    margin-top: 10px;
+}
+
+.status-badge {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 5px 15px;
+    background: #0f1322;
+    border: 1px solid #00ffaa;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.blink {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #5a6e8a;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #00ffaa;
+}
+
+.stat-delta {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.delta-positive {
+    color: #00ffaa;
+}
+
+.delta-negative {
+    color: #ff4444;
+}
+
+/* Map */
+.map-section {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.map-section h2 {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.map-container {
+    height: 500px;
+    background: #050814;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.caption {
+    font-size: 11px;
+    color: #5a6e8a;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Signal Card */
+.signal-section {
+    margin-bottom: 30px;
+}
+
+.signal-card {
+    background: linear-gradient(135deg, #0f1322, #0a0e27);
+    border: 1px solid #2a2f4a;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+}
+
+.signal-card.bullish {
+    border-left: 4px solid #00ffaa;
+    background: rgba(0,255,170,0.05);
+}
+
+.signal-card.bearish {
+    border-left: 4px solid #ff4444;
+    background: rgba(255,68,68,0.05);
+}
+
+.signal-card.neutral {
+    border-left: 4px solid #ffaa00;
+    background: rgba(255,170,0,0.05);
+}
+
+.signal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.signal-emoji {
+    font-size: 2em;
+}
+
+.signal-code {
+    font-size: 2em;
+    font-weight: bold;
+    font-family: 'Orbitron', monospace;
+}
+
+.signal-text {
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.signal-reason {
+    margin-top: 15px;
+    color: #88ffcc;
+}
+
+/* Slope Card */
+.slope-section {
+    margin-bottom: 30px;
+}
+
+.slope-card {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.slope-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.delta-values {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Altcoins Grid */
+.altcoins-section {
+    margin-bottom: 30px;
+}
+
+.altcoins-section h2 {
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.coins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.coin-card {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.coin-card:hover {
+    transform: translateY(-2px);
+    border-color: #00ffaa;
+}
+
+.coin-symbol {
+    font-size: 1.2em;
+    font-weight: bold;
+    font-family: 'Orbitron', monospace;
+}
+
+.coin-signal {
+    font-size: 1em;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.coin-signal.long {
+    color: #00ffaa;
+}
+
+.coin-signal.short {
+    color: #ff4444;
+}
+
+.coin-signal.neutral {
+    color: #ffaa00;
+}
+
+.coin-strength {
+    font-size: 11px;
+    color: #5a6e8a;
+}
+
+.coin-entry {
+    font-size: 10px;
+    margin-top: 5px;
+    color: #88ffcc;
+}
+
+/* Scalping */
+.scalping-section {
+    margin-bottom: 30px;
+}
+
+.scalping-section h2 {
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.scalping-card {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.scalping-signal {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.scalping-signal.long {
+    color: #00ffaa;
+}
+
+.scalping-signal.short {
+    color: #ff4444;
+}
+
+/* Risk Grid */
+.risk-section {
+    margin-bottom: 30px;
+}
+
+.risk-section h2 {
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.risk-card {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.risk-card h3 {
+    font-size: 1em;
+    margin-bottom: 10px;
+    color: #00ffaa;
+}
+
+.risk-card p {
+    font-size: 12px;
+    margin: 5px 0;
+    color: #88ffcc;
+}
+
+/* Legend */
+.legend-section {
+    margin-bottom: 30px;
+}
+
+.legend-section h2 {
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.legend-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.legend-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.legend-badge.bullish {
+    background: rgba(0,255,170,0.2);
+    color: #00ffaa;
+}
+
+.legend-badge.bearish {
+    background: rgba(255,68,68,0.2);
+    color: #ff4444;
+}
+
+.legend-badge.neutral {
+    background: rgba(255,170,0,0.2);
+    color: #ffaa00;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 25px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: monospace;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: #00ffaa;
+    color: #0a0e27;
+}
+
+.btn-primary:hover {
+    background: #00cc88;
+    transform: scale(1.02);
+}
+
+.btn-secondary {
+    background: #2a2f4a;
+    color: #88ffcc;
+}
+
+.btn-secondary:hover {
+    background: #3a3f5a;
+}
+
+/* History */
+.history-section {
+    background: #0f1322;
+    border: 1px solid #2a2f4a;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.history-section h2 {
+    margin-bottom: 15px;
+    color: #00ffaa;
+}
+
+.history-item {
+    background: #0a0e27;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    color: #5a6e8a;
+    font-size: 11px;
+    padding-top: 20px;
+    border-top: 1px solid #2a2f4a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
     
-    # Astro-Numerical Reduction (1-9)
-    astro_val = sum(int(d) for d in str(abs(int(tor * 100)))) % 9 or 9
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
     
-    # Uzair Ali Strategy Rules
-    if tor >= 66.5 and funding == "Negative" and cvd == "Up":
-        return "🚀 STRONG PUMP (L+)", "#00FFFF", "Bullish Momentum Build", ["Funding Neg", "CVD Up", "Whale Out", "ETF Inflow"], astro_val
-    elif tor < 64.0 and funding == "Positive" and cvd == "Down":
-        return "⚠️ STRONG DUMP (S+)", "#FF4500", "Bearish Liquidation Flush", ["Funding Pos", "CVD Down", "Whale In", "ETF Outflow"], astro_val
-    else:
-        return "NEUTRAL (⚪)", "#808080", "Waiting for Sync", ["Monitoring Orderflow"], astro_val
-
-# --- Main UI Rendering ---
-st.markdown("<h1>UZAIR ALI DARK CRYPTO BITNODES LIVE MAP</h1>", unsafe_allow_html=True)
-
-nodes, na_total, ts = fetch_bitnodes_live()
-sig_text, sig_col, sig_logic, tags, astro = process_uzair_signal(na_total)
-
-col_map, col_side = st.columns([3, 1])
-
-with col_map:
-    # 3D Globe with Real Bitnodes Coordinates
-    df = pd.DataFrame(nodes)
-    fig = go.Figure(go.Scattergeo(
-        lat=df['lat'],
-        lon=df['lon'],
-        text=df['country'] + " | BTC | " + sig_text,
-        mode='markers',
-        marker=dict(size=6, color=sig_col, opacity=0.8, line=dict(width=0.4, color='white'))
-    ))
+    .coins-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
     
-    fig.update_layout(
-        geo=dict(
-            projection_type='orthographic',
-            bgcolor='black', showland=True, landcolor='#080808',
-            showcountries=True, countrycolor='#222',
-            showocean=True, oceancolor='black'
-        ),
-        template='plotly_dark', margin=dict(l=0,r=0,t=0,b=0), height=780
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-with col_side:
-    st.markdown("### 📊 Master Analytics")
-    st.markdown(f"""
-        <div class="signal-card" style="border-color: {sig_col};">
-            <h2 style="color: {sig_col}; margin:0;">{sig_text}</h2>
-            <p style="margin-top:10px;"><b>Logic:</b> {sig_logic}</p>
-            <div style="margin-bottom:10px;">
-                {''.join([f'<span class="strategy-tag">{t}</span>' for t in tags])}
-            </div>
-            <p style="color:gray; font-size:12px;">NA: {na_total} | Astro: {astro}</p>
-        </div>
-    """, unsafe_allow_html=True)
+    .signal-header {
+        flex-direction: column;
+        gap: 5px;
+    }
     
-    st.markdown("---")
-    st.write(f"**UTC Update:** {datetime.fromtimestamp(ts).strftime('%H:%M:%S')}")
-    st.info("**Astro Window:** 09:15–09:30 (Reversal)")
-    st.warning("**Risk:** Stop Loss 0.25% - 0.4%")
-    st.success("**DCA Rule:** Add only if NA > 23,900")
-
-# Auto-Refresh to maintain Live Data flow
-from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=30000, key="livemaprefresh")
+    .signal-code, .signal-text {
+        font-size: 1.2em;
+    }
+}
