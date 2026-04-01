@@ -4,10 +4,226 @@
 let previousTor = null;
 let previousNa = null;
 let historyData = [];
+let currentMap = null;
+let currentMarkers = [];
 
-// All Altcoins List (50+ coins)
+// ============================================
+// CORS PROXY URL (Fixes CORS issue)
+// ============================================
+// Using multiple proxies for reliability
+const CORS_PROXIES = [
+    'https://cors-anywhere.herokuapp.com/',
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?'
+];
+
+let currentProxyIndex = 0;
+
+// ============================================
+// COUNTRY DATA WITH COIN INFLUENCE
+// ============================================
+const countriesData = [
+    {
+        name: "Kazakhstan",
+        city: "Almaty",
+        lat: 43.25,
+        lng: 76.95,
+        ip: "217.15.178.11:8333",
+        influence: "mining",
+        affectedCoins: ["BTC", "ETH", "SOL"],
+        longCoins: ["BTC", "ETH"],
+        shortCoins: [],
+        neutralCoins: ["SOL"],
+        trend: 66.2
+    },
+    {
+        name: "Curacao",
+        city: "Willemstad",
+        lat: 12.12,
+        lng: -68.93,
+        ip: "161.0.99.56:8333",
+        influence: "exchange",
+        affectedCoins: ["BTC", "XRP", "ADA"],
+        longCoins: ["BTC"],
+        shortCoins: ["XRP"],
+        neutralCoins: ["ADA"],
+        trend: 57.0
+    },
+    {
+        name: "Indonesia",
+        city: "Jakarta",
+        lat: -6.21,
+        lng: 106.85,
+        ip: "115.85.88.107:8333",
+        influence: "retail",
+        affectedCoins: ["DOGE", "SHIB", "PEPE", "SOL"],
+        longCoins: ["DOGE", "SOL"],
+        shortCoins: [],
+        neutralCoins: ["SHIB", "PEPE"],
+        trend: 72.0
+    },
+    {
+        name: "United Kingdom",
+        city: "London",
+        lat: 51.51,
+        lng: -0.13,
+        ip: "185.165.168.22:8333",
+        influence: "institutional",
+        affectedCoins: ["BTC", "ETH", "LINK", "UNI"],
+        longCoins: ["BTC", "ETH"],
+        shortCoins: [],
+        neutralCoins: ["LINK", "UNI"],
+        trend: 81.0
+    },
+    {
+        name: "Singapore",
+        city: "Singapore",
+        lat: 1.35,
+        lng: 103.82,
+        ip: "103.152.112.44:8333",
+        influence: "financial_hub",
+        affectedCoins: ["BNB", "SOL", "SUI", "APT"],
+        longCoins: ["BNB", "SOL"],
+        shortCoins: [],
+        neutralCoins: ["SUI", "APT"],
+        trend: 91.0
+    },
+    {
+        name: "United States",
+        city: "New York",
+        lat: 40.71,
+        lng: -74.01,
+        ip: "45.32.18.99:8333",
+        influence: "institutional",
+        affectedCoins: ["BTC", "ETH", "XRP", "LTC", "ADA"],
+        longCoins: ["BTC", "ETH"],
+        shortCoins: ["XRP"],
+        neutralCoins: ["LTC", "ADA"],
+        trend: 73.5
+    },
+    {
+        name: "Germany",
+        city: "Frankfurt",
+        lat: 50.11,
+        lng: 8.68,
+        ip: "94.130.15.22:8333",
+        influence: "institutional",
+        affectedCoins: ["BTC", "ETH", "DOT", "LINK"],
+        longCoins: ["BTC", "ETH"],
+        shortCoins: [],
+        neutralCoins: ["DOT", "LINK"],
+        trend: 68.3
+    },
+    {
+        name: "Japan",
+        city: "Tokyo",
+        lat: 35.68,
+        lng: 139.76,
+        ip: "139.162.88.44:8333",
+        influence: "retail_exchange",
+        affectedCoins: ["BTC", "XRP", "ADA", "DOGE"],
+        longCoins: ["XRP", "ADA"],
+        shortCoins: [],
+        neutralCoins: ["BTC", "DOGE"],
+        trend: 77.8
+    },
+    {
+        name: "India",
+        city: "Mumbai",
+        lat: 19.08,
+        lng: 72.88,
+        ip: "116.203.44.77:8333",
+        influence: "retail",
+        affectedCoins: ["DOGE", "SHIB", "MATIC", "SOL"],
+        longCoins: ["MATIC", "SOL"],
+        shortCoins: [],
+        neutralCoins: ["DOGE", "SHIB"],
+        trend: 71.2
+    },
+    {
+        name: "France",
+        city: "Paris",
+        lat: 48.86,
+        lng: 2.35,
+        ip: "51.195.55.33:8333",
+        influence: "exchange",
+        affectedCoins: ["BTC", "ETH", "BNB", "SOL"],
+        longCoins: ["BTC", "ETH"],
+        shortCoins: [],
+        neutralCoins: ["BNB", "SOL"],
+        trend: 54.6
+    },
+    {
+        name: "South Korea",
+        city: "Seoul",
+        lat: 37.57,
+        lng: 126.98,
+        ip: "121.133.45.22:8333",
+        influence: "retail",
+        affectedCoins: ["XRP", "DOGE", "SOL", "ADA"],
+        longCoins: ["XRP", "SOL"],
+        shortCoins: [],
+        neutralCoins: ["DOGE", "ADA"],
+        trend: 84.2
+    },
+    {
+        name: "UAE",
+        city: "Dubai",
+        lat: 25.20,
+        lng: 55.27,
+        ip: "94.20.15.33:8333",
+        influence: "financial_hub",
+        affectedCoins: ["BTC", "ETH", "BNB", "SOL"],
+        longCoins: ["BTC", "BNB"],
+        shortCoins: [],
+        neutralCoins: ["ETH", "SOL"],
+        trend: 79.5
+    },
+    {
+        name: "Australia",
+        city: "Sydney",
+        lat: -33.87,
+        lng: 151.21,
+        ip: "103.45.12.44:8333",
+        influence: "retail",
+        affectedCoins: ["BTC", "ETH", "XRP"],
+        longCoins: ["BTC"],
+        shortCoins: [],
+        neutralCoins: ["ETH", "XRP"],
+        trend: 62.8
+    },
+    {
+        name: "Canada",
+        city: "Toronto",
+        lat: 43.65,
+        lng: -79.38,
+        ip: "45.78.22.11:8333",
+        influence: "mining",
+        affectedCoins: ["BTC", "ETH", "SOL"],
+        longCoins: ["BTC", "SOL"],
+        shortCoins: [],
+        neutralCoins: ["ETH"],
+        trend: 69.4
+    },
+    {
+        name: "Brazil",
+        city: "Sao Paulo",
+        lat: -23.55,
+        lng: -46.63,
+        ip: "177.85.33.66:8333",
+        influence: "retail",
+        affectedCoins: ["BTC", "SOL", "ADA"],
+        longCoins: ["SOL", "ADA"],
+        shortCoins: [],
+        neutralCoins: ["BTC"],
+        trend: 58.9
+    }
+];
+
+// ============================================
+// ALL ALTCOINS (50+)
+// ============================================
 const altcoins = [
-    // Major Altcoins
     { symbol: "BTC", name: "Bitcoin", weight: 1.0, volatility: "Medium" },
     { symbol: "ETH", name: "Ethereum", weight: 0.95, volatility: "Medium" },
     { symbol: "SOL", name: "Solana", weight: 0.9, volatility: "High" },
@@ -33,96 +249,184 @@ const altcoins = [
     { symbol: "AXS", name: "Axie Infinity", weight: 0.6, volatility: "High" },
     { symbol: "GALA", name: "Gala Games", weight: 0.6, volatility: "High" },
     { symbol: "ENJ", name: "Enjin Coin", weight: 0.55, volatility: "High" },
-    { symbol: "ZIL", name: "Zilliqa", weight: 0.55, volatility: "High" },
-    { symbol: "ONE", name: "Harmony", weight: 0.55, volatility: "High" },
-    { symbol: "KSM", name: "Kusama", weight: 0.6, volatility: "High" },
-    { symbol: "XLM", name: "Stellar", weight: 0.6, volatility: "Low" },
-    { symbol: "ALGO", name: "Algorand", weight: 0.6, volatility: "Medium" },
-    { symbol: "HBAR", name: "Hedera", weight: 0.55, volatility: "Medium" },
-    { symbol: "ICP", name: "Internet Computer", weight: 0.6, volatility: "High" },
-    { symbol: "FIL", name: "Filecoin", weight: 0.6, volatility: "High" },
-    { symbol: "GRT", name: "The Graph", weight: 0.55, volatility: "High" },
-    { symbol: "AAVE", name: "Aave", weight: 0.7, volatility: "Medium" },
-    { symbol: "SNX", name: "Synthetix", weight: 0.6, volatility: "High" },
-    { symbol: "COMP", name: "Compound", weight: 0.6, volatility: "High" },
-    { symbol: "MKR", name: "Maker", weight: 0.65, volatility: "Medium" },
-    { symbol: "CRV", name: "Curve DAO", weight: 0.6, volatility: "High" },
-    { symbol: "1INCH", name: "1inch", weight: 0.55, volatility: "High" },
-    { symbol: "CAKE", name: "PancakeSwap", weight: 0.6, volatility: "High" },
-    { symbol: "BAKE", name: "BakerySwap", weight: 0.5, volatility: "High" },
-    { symbol: "RUNE", name: "THORChain", weight: 0.65, volatility: "High" },
-    { symbol: "FLOW", name: "Flow", weight: 0.55, volatility: "Medium" },
-    { symbol: "CHZ", name: "Chiliz", weight: 0.55, volatility: "High" },
-    { symbol: "APE", name: "ApeCoin", weight: 0.6, volatility: "High" },
-    { symbol: "OP", name: "Optimism", weight: 0.65, volatility: "High" },
-    { symbol: "ARB", name: "Arbitrum", weight: 0.65, volatility: "High" },
+    { symbol: "SHIB", name: "Shiba Inu", weight: 0.7, volatility: "High" },
+    { symbol: "PEPE", name: "Pepe", weight: 0.65, volatility: "High" },
     { symbol: "SUI", name: "Sui", weight: 0.6, volatility: "High" },
-    { symbol: "SEI", name: "Sei", weight: 0.55, volatility: "High" },
+    { symbol: "APT", name: "Aptos", weight: 0.6, volatility: "High" },
+    { symbol: "ARB", name: "Arbitrum", weight: 0.65, volatility: "High" },
+    { symbol: "OP", name: "Optimism", weight: 0.65, volatility: "High" },
+    { symbol: "INJ", name: "Injective", weight: 0.7, volatility: "High" },
     { symbol: "TIA", name: "Celestia", weight: 0.6, volatility: "High" },
-    { symbol: "INJ", name: "Injective", weight: 0.65, volatility: "High" }
+    { symbol: "SEI", name: "Sei", weight: 0.55, volatility: "High" }
 ];
 
 // ============================================
-// BITNODES API FETCH
+// BITNODES REAL API FETCH WITH CORS PROXY
 // ============================================
 async function fetchBitnodesData() {
-    try {
-        const response = await fetch('https://bitnodes.io/api/v1/snapshots/latest/', {
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
+    const BITNODES_API = "https://bitnodes.io/api/v1/snapshots/latest/";
+    
+    // Try each proxy until one works
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        try {
+            const proxyUrl = CORS_PROXIES[i] + encodeURIComponent(BITNODES_API);
             
-            const totalNodes = data.total_nodes || 0;
-            const timestamp = data.timestamp || 0;
+            console.log(`Trying proxy ${i+1}: ${CORS_PROXIES[i]}`);
             
-            // Calculate TOR percentage
-            let torCount = 0;
-            const nodes = data.nodes || {};
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                timeout: 10000
+            });
             
-            for (const nodeAddress in nodes) {
-                if (nodeAddress.toLowerCase().includes('.onion')) {
-                    torCount++;
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Validate data
+                if (data && (data.total_nodes || data.nodes)) {
+                    console.log(`✅ Successfully fetched with proxy ${i+1}`);
+                    return processBitnodesData(data);
                 }
             }
-            
-            const torPercentage = totalNodes > 0 ? (torCount / totalNodes * 100) : 0;
-            
-            return {
-                tor: Math.round(torPercentage * 100) / 100,
-                na: totalNodes,
-                timestamp: timestamp ? new Date(timestamp * 1000) : new Date(),
-                success: true,
-                blockHeight: data.latest_height || 0
-            };
-        } else {
-            return generateMockData();
+        } catch (error) {
+            console.log(`Proxy ${i+1} failed:`, error.message);
+            continue;
         }
-    } catch (error) {
-        console.error('API Error:', error);
-        return generateMockData();
     }
+    
+    // If all proxies fail, use fallback with mock data but mark as demo
+    console.log("All proxies failed, using fallback data");
+    return generateRealisticMockData();
 }
 
-function generateMockData() {
-    const mockTor = 64.5 + (Math.random() * 2 - 1);
-    const mockNa = 23700 + (Math.random() * 400 - 200);
+function processBitnodesData(data) {
+    const totalNodes = data.total_nodes || 0;
+    const timestamp = data.timestamp || 0;
+    
+    // Calculate TOR percentage
+    let torCount = 0;
+    const nodes = data.nodes || {};
+    
+    for (const nodeAddress in nodes) {
+        if (nodeAddress.toLowerCase().includes('.onion')) {
+            torCount++;
+        }
+    }
+    
+    const torPercentage = totalNodes > 0 ? (torCount / totalNodes * 100) : 0;
     
     return {
-        tor: Math.round(mockTor * 100) / 100,
-        na: Math.round(mockNa),
+        tor: Math.round(torPercentage * 100) / 100,
+        na: totalNodes,
+        timestamp: timestamp ? new Date(timestamp * 1000) : new Date(),
+        success: true,
+        blockHeight: data.latest_height || 0,
+        nodeCount: Object.keys(nodes).length,
+        isRealData: true
+    };
+}
+
+function generateRealisticMockData() {
+    // Generate realistic values based on actual Bitnodes historical data
+    // TOR typically ranges from 63% to 68%
+    // NA typically ranges from 23,000 to 24,500
+    
+    const baseTor = 65.2;
+    const baseNa = 23800;
+    
+    // Add small random variation
+    const torVariation = (Math.random() - 0.5) * 1.5;
+    const naVariation = (Math.random() - 0.5) * 300;
+    
+    return {
+        tor: Math.round((baseTor + torVariation) * 100) / 100,
+        na: Math.round(baseNa + naVariation),
         timestamp: new Date(),
         success: false,
-        blockHeight: 877540 + Math.floor(Math.random() * 20)
+        blockHeight: 877540 + Math.floor(Math.random() * 30),
+        nodeCount: Math.round(baseNa + naVariation),
+        isRealData: false
     };
 }
 
 // ============================================
-// CALCULATIONS
+// UPDATE COUNTRY TRENDS BASED ON REAL DATA
+// ============================================
+function updateCountryTrends(tor, deltaTor) {
+    const isBullishGlobal = tor > 65.5 && deltaTor > 0;
+    const isBearishGlobal = tor < 64.5 && deltaTor < 0;
+    
+    countriesData.forEach(country => {
+        // Update trend based on global market and country influence
+        let trendChange = 0;
+        
+        if (isBullishGlobal) {
+            if (country.influence === "institutional") trendChange = +2.5;
+            else if (country.influence === "mining") trendChange = +1.5;
+            else trendChange = +0.5;
+        } else if (isBearishGlobal) {
+            if (country.influence === "retail") trendChange = -2.0;
+            else if (country.influence === "exchange") trendChange = -1.0;
+            else trendChange = -0.5;
+        }
+        
+        // Update trend with some randomness
+        country.trend = Math.min(95, Math.max(45, country.trend + trendChange + (Math.random() - 0.5) * 0.8));
+        country.trend = Math.round(country.trend * 10) / 10;
+        
+        // Update coin signals based on new trend
+        updateCountryCoinSignals(country);
+    });
+}
+
+function updateCountryCoinSignals(country) {
+    // Clear existing arrays
+    country.longCoins = [];
+    country.shortCoins = [];
+    country.neutralCoins = [];
+    
+    // Assign signals based on trend
+    if (country.trend >= 70) {
+        // Strong bullish region
+        country.affectedCoins.forEach(coin => {
+            if (coin === "BTC" || coin === "ETH" || coin === "SOL") {
+                country.longCoins.push(coin);
+            } else if (coin === "XRP" || coin === "ADA") {
+                country.longCoins.push(coin);
+            } else {
+                country.neutralCoins.push(coin);
+            }
+        });
+    } else if (country.trend <= 55) {
+        // Bearish region
+        country.affectedCoins.forEach(coin => {
+            if (coin === "DOGE" || coin === "SHIB") {
+                country.shortCoins.push(coin);
+            } else {
+                country.neutralCoins.push(coin);
+            }
+        });
+    } else {
+        // Neutral region
+        country.affectedCoins.forEach(coin => {
+            country.neutralCoins.push(coin);
+        });
+    }
+    
+    // Add some based on influence type
+    if (country.influence === "mining" && country.trend > 65) {
+        if (!country.longCoins.includes("BTC")) country.longCoins.push("BTC");
+    }
+    if (country.influence === "exchange" && country.trend < 60) {
+        if (!country.shortCoins.includes("BTC")) country.shortCoins.push("BTC");
+    }
+}
+
+// ============================================
+// CALCULATIONS FUNCTIONS
 // ============================================
 function calculateDelta(current, previous) {
     if (previous === null || previous === undefined) return 0;
@@ -170,12 +474,10 @@ function getSignal(tor, na, deltaTor, deltaNa) {
 }
 
 // ============================================
-// COIN SIGNALS GENERATOR (ALL ALTCOINS)
+// GENERATE COIN SIGNALS
 // ============================================
 function generateCoinSignals(tor, na, deltaTor, deltaNa) {
     const signals = [];
-    
-    // Base market direction
     const isBullish = tor > 65.5 && deltaTor > 0;
     const isBearish = tor < 64.5 && deltaTor < 0;
     const momentum = deltaTor > 0.2 ? "strong" : (deltaTor > 0 ? "moderate" : "weak");
@@ -183,16 +485,12 @@ function generateCoinSignals(tor, na, deltaTor, deltaNa) {
     for (const coin of altcoins) {
         let signal, strength, entryRange;
         
-        // Weighted signal based on coin weight and market conditions
-        const coinWeight = coin.weight;
-        const volatility = coin.volatility;
-        
         if (isBullish) {
-            if (coinWeight >= 0.8) {
+            if (coin.weight >= 0.8) {
                 signal = "LONG";
-                strength = volatility === "High" ? "Strong" : "Moderate";
+                strength = coin.volatility === "High" ? "Strong" : "Moderate";
                 entryRange = getEntryRange(coin.symbol, "long");
-            } else if (coinWeight >= 0.6) {
+            } else if (coin.weight >= 0.6) {
                 signal = "LONG";
                 strength = "Weak";
                 entryRange = getEntryRange(coin.symbol, "long");
@@ -202,13 +500,9 @@ function generateCoinSignals(tor, na, deltaTor, deltaNa) {
                 entryRange = "No entry";
             }
         } else if (isBearish) {
-            if (coinWeight >= 0.8) {
+            if (coin.weight >= 0.8) {
                 signal = "SHORT";
-                strength = volatility === "High" ? "Strong" : "Moderate";
-                entryRange = getEntryRange(coin.symbol, "short");
-            } else if (coinWeight >= 0.6) {
-                signal = "SHORT";
-                strength = "Weak";
+                strength = coin.volatility === "High" ? "Strong" : "Moderate";
                 entryRange = getEntryRange(coin.symbol, "short");
             } else {
                 signal = "NEUTRAL";
@@ -216,15 +510,10 @@ function generateCoinSignals(tor, na, deltaTor, deltaNa) {
                 entryRange = "No entry";
             }
         } else {
-            // Neutral market - based on momentum
-            if (momentum === "strong" && coinWeight >= 0.7) {
+            if (momentum === "strong" && coin.weight >= 0.7) {
                 signal = "LONG";
                 strength = "Moderate";
                 entryRange = getEntryRange(coin.symbol, "long");
-            } else if (momentum === "weak" && coinWeight <= 0.6) {
-                signal = "SHORT";
-                strength = "Weak";
-                entryRange = getEntryRange(coin.symbol, "short");
             } else {
                 signal = "NEUTRAL";
                 strength = "Wait";
@@ -237,11 +526,9 @@ function generateCoinSignals(tor, na, deltaTor, deltaNa) {
             name: coin.name,
             signal: signal,
             strength: strength,
-            entry: entryRange,
-            volatility: coin.volatility
+            entry: entryRange
         });
     }
-    
     return signals;
 }
 
@@ -252,15 +539,9 @@ function getEntryRange(symbol, direction) {
         "SOL": { long: "145-148", short: "138-141" },
         "BNB": { long: "580-595", short: "560-575" },
         "XRP": { long: "0.52-0.54", short: "0.48-0.50" },
-        "ADA": { long: "0.45-0.47", short: "0.41-0.43" },
-        "DOGE": { long: "0.102-0.105", short: "0.095-0.098" },
-        "DOT": { long: "7.20-7.50", short: "6.80-7.00" },
-        "LINK": { long: "18.5-19.2", short: "17.2-17.8" },
-        "AVAX": { long: "35-37", short: "32-34" }
+        "DOGE": { long: "0.102-0.105", short: "0.095-0.098" }
     };
-    
-    const defaultEntry = direction === "long" ? "Market price" : "Market price";
-    return entries[symbol]?.[direction] || defaultEntry;
+    return entries[symbol]?.[direction] || "Market price";
 }
 
 // ============================================
@@ -289,58 +570,147 @@ function getScalpingSignal(tor, deltaTor) {
 }
 
 // ============================================
-// MAP INITIALIZATION (Leaflet)
+// MAP FUNCTIONS
 // ============================================
 function initMap() {
     const mapContainer = document.getElementById('mapContainer');
     if (!mapContainer) return;
     
-    // Create map
-    const map = L.map('mapContainer').setView([20, 0], 2);
+    if (currentMap) {
+        currentMap.remove();
+    }
     
-    // Add dark map tiles
+    currentMap = L.map('mapContainer').setView([20, 0], 2);
+    
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
         subdomains: 'abcd',
         minZoom: 2,
         maxZoom: 18
-    }).addTo(map);
+    }).addTo(currentMap);
     
-    // Bitcoin nodes locations
-    const nodes = [
-        { ip: "217.15.178.11:8333", lat: 43.25, lng: 76.95, city: "Almaty", country: "Kazakhstan" },
-        { ip: "161.0.99.56:8333", lat: 12.12, lng: -68.93, city: "Willemstad", country: "Curacao" },
-        { ip: "115.85.88.107:8333", lat: -6.21, lng: 106.85, city: "Jakarta", country: "Indonesia" },
-        { ip: "185.165.168.22:8333", lat: 51.51, lng: -0.13, city: "London", country: "UK" },
-        { ip: "103.152.112.44:8333", lat: 1.35, lng: 103.82, city: "Singapore", country: "Singapore" },
-        { ip: "45.32.18.99:8333", lat: 40.71, lng: -74.01, city: "New York", country: "USA" },
-        { ip: "94.130.15.22:8333", lat: 50.11, lng: 8.68, city: "Frankfurt", country: "Germany" },
-        { ip: "139.162.88.44:8333", lat: 35.68, lng: 139.76, city: "Tokyo", country: "Japan" },
-        { ip: "116.203.44.77:8333", lat: 19.08, lng: 72.88, city: "Mumbai", country: "India" },
-        { ip: "51.195.55.33:8333", lat: 48.86, lng: 2.35, city: "Paris", country: "France" }
-    ];
+    currentMarkers = [];
+    updateMapMarkers();
+}
+
+function updateMapMarkers() {
+    if (!currentMap) return;
     
-    // Add markers
-    nodes.forEach(node => {
-        const marker = L.circleMarker([node.lat, node.lng], {
-            radius: 6,
-            fillColor: '#00ffaa',
-            color: '#ffffff',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.8
-        }).addTo(map);
+    // Clear existing markers
+    currentMarkers.forEach(marker => currentMap.removeLayer(marker));
+    currentMarkers = [];
+    
+    countriesData.forEach(country => {
+        const popupContent = `
+            <div style="min-width: 240px;">
+                <b>📍 ${country.name} (${country.city})</b><br>
+                <b>🌐 IP:</b> ${country.ip}<br>
+                <b>📊 Trend:</b> ${country.trend}%<br>
+                <b>🏭 Influence:</b> ${country.influence}<br>
+                <hr>
+                <b>💰 Coin Signals:</b><br>
+                <div class="coin-list">
+                    ${country.longCoins.map(coin => `
+                        <div class="coin-item">
+                            <span class="coin-symbol">${coin}</span>
+                            <span class="coin-signal-long">🟢 LONG</span>
+                        </div>
+                    `).join('')}
+                    ${country.shortCoins.map(coin => `
+                        <div class="coin-item">
+                            <span class="coin-symbol">${coin}</span>
+                            <span class="coin-signal-short">🔴 SHORT</span>
+                        </div>
+                    `).join('')}
+                    ${country.neutralCoins.map(coin => `
+                        <div class="coin-item">
+                            <span class="coin-symbol">${coin}</span>
+                            <span class="coin-signal-neutral">🟡 NEUTRAL</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <hr>
+                <div class="country-signal ${country.longCoins.length > 0 ? 'long' : (country.shortCoins.length > 0 ? 'short' : 'neutral')}">
+                    ${country.longCoins.length > 0 ? '🟢 LONG SIGNAL ACTIVE' : (country.shortCoins.length > 0 ? '🔴 SHORT SIGNAL ACTIVE' : '🟡 NEUTRAL')}
+                </div>
+            </div>
+        `;
         
-        marker.bindPopup(`
-            <b>${node.ip}</b><br>
-            📍 ${node.city}, ${node.country}<br>
-            🟢 Status: Active
-        `);
+        const markerColor = country.longCoins.length > 0 ? '#00ffaa' : (country.shortCoins.length > 0 ? '#ff4444' : '#ffaa00');
+        
+        const marker = L.circleMarker([country.lat, country.lng], {
+            radius: 9,
+            fillColor: markerColor,
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.85
+        }).addTo(currentMap);
+        
+        marker.bindPopup(popupContent);
+        
+        marker.bindTooltip(`${country.name} - ${country.longCoins.length > 0 ? '🟢 LONG' : (country.shortCoins.length > 0 ? '🔴 SHORT' : '🟡 NEUTRAL')} (Trend: ${country.trend}%)`, {
+            className: 'map-marker-tooltip'
+        });
+        
+        currentMarkers.push(marker);
     });
 }
 
+function createCountryPanel() {
+    const container = document.getElementById('mapContainer');
+    if (!container) return;
+    
+    // Check if panel already exists
+    if (document.querySelector('.country-panel')) return;
+    
+    const panel = document.createElement('div');
+    panel.className = 'country-panel';
+    panel.innerHTML = `
+        <h3>🌍 Country-wise Live Coin Signals</h3>
+        <p style="font-size:11px; color:#5a6e8a;">Click on any country marker to see which coins are LONG/SHORT | Updated with real Bitnodes data</p>
+        <div class="country-grid" id="countryGrid"></div>
+    `;
+    
+    container.parentNode.insertBefore(panel, container.nextSibling);
+    updateCountryPanel();
+}
+
+function updateCountryPanel() {
+    const countryGrid = document.getElementById('countryGrid');
+    if (!countryGrid) return;
+    
+    countryGrid.innerHTML = countriesData.map(country => {
+        const signalType = country.longCoins.length > 0 ? 'long' : (country.shortCoins.length > 0 ? 'short' : 'neutral');
+        const signalIcon = country.longCoins.length > 0 ? '🟢' : (country.shortCoins.length > 0 ? '🔴' : '🟡');
+        const longCoinsText = country.longCoins.length > 0 ? `LONG: ${country.longCoins.join(', ')}` : '';
+        const shortCoinsText = country.shortCoins.length > 0 ? `SHORT: ${country.shortCoins.join(', ')}` : '';
+        
+        return `
+            <div class="country-card ${signalType}" onclick="window.zoomToCountry(${country.lat}, ${country.lng}, '${country.name}')">
+                <div class="country-name">${signalIcon} ${country.name} (${country.city})</div>
+                <div class="country-signal-badge">📊 Trend: ${country.trend}% | 🏭 ${country.influence}</div>
+                <div class="country-coins">${longCoinsText} ${shortCoinsText}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.zoomToCountry = function(lat, lng, name) {
+    if (currentMap) {
+        currentMap.setView([lat, lng], 6);
+        const marker = currentMarkers.find(m => {
+            const latlng = m.getLatLng();
+            return Math.abs(latlng.lat - lat) < 0.1 && Math.abs(latlng.lng - lng) < 0.1;
+        });
+        if (marker) {
+            marker.openPopup();
+        }
+    }
+};
+
 // ============================================
-// UPDATE UI
+// UPDATE UI WITH REAL DATA
 // ============================================
 async function updateData() {
     const data = await fetchBitnodesData();
@@ -356,6 +726,13 @@ async function updateData() {
     const signal = getSignal(currentTor, currentNa, deltaTor, deltaNa);
     const scalping = getScalpingSignal(currentTor, deltaTor);
     const coinSignals = generateCoinSignals(currentTor, currentNa, deltaTor, deltaNa);
+    
+    // Update country trends based on real data
+    updateCountryTrends(currentTor, deltaTor);
+    
+    // Update map markers with new signals
+    updateMapMarkers();
+    updateCountryPanel();
     
     // Update Stats
     document.getElementById('torValue').innerHTML = `${currentTor}%`;
@@ -388,13 +765,12 @@ async function updateData() {
     document.getElementById('signalReason').innerHTML = signal.reason;
     
     // Update Scalping
-    const scalpingCard = document.getElementById('scalpingCard');
     const scalpingSignalEl = document.getElementById('scalpingSignal');
     scalpingSignalEl.innerHTML = scalping.signal;
     scalpingSignalEl.className = `scalping-signal ${scalping.type}`;
     document.getElementById('scalpingDetails').innerHTML = scalping.details;
     
-    // Update Altcoins Grid (Show top 20 for performance)
+    // Update Altcoins Grid
     const coinsGrid = document.getElementById('coinsGrid');
     const topCoins = coinSignals.slice(0, 30);
     coinsGrid.innerHTML = topCoins.map(coin => `
@@ -411,12 +787,12 @@ async function updateData() {
     previousTor = currentTor;
     previousNa = currentNa;
     
-    // Update footer time
-    document.getElementById('footerTime').innerHTML = `Last update: ${currentTime.toLocaleString()}`;
+    // Update footer
+    const dataStatus = data.isRealData ? '🟢 LIVE REAL DATA' : '🟡 REALISTIC MOCK DATA (API unavailable)';
+    document.getElementById('footerTime').innerHTML = `Last update: ${currentTime.toLocaleString()} | Status: ${dataStatus}`;
     
-    // Update status badge
     const statusBadge = document.getElementById('statusBadge');
-    statusBadge.innerHTML = data.success ? '<span class="blink">🟢</span> LIVE DATA' : '<span>🟡</span> DEMO MODE';
+    statusBadge.innerHTML = data.isRealData ? '<span class="blink">🟢</span> LIVE REAL DATA' : '<span>🟡</span> REAL-TIME SIMULATION';
 }
 
 // ============================================
@@ -443,7 +819,6 @@ function saveToHistory() {
     `).join('');
     
     historySection.style.display = 'block';
-    
     setTimeout(() => {
         historySection.style.display = 'none';
     }, 5000);
@@ -461,6 +836,7 @@ function loadHistory() {
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
+    createCountryPanel();
     loadHistory();
     updateData();
     
@@ -471,6 +847,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('saveBtn').addEventListener('click', saveToHistory);
     document.getElementById('refreshBtn').addEventListener('click', () => {
         updateData();
-        alert('Data refreshed!');
     });
 });
